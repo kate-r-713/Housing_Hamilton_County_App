@@ -1,26 +1,33 @@
-
+# ----------------------------
+# Title & Description
+# ----------------------------
 st.title("Hamilton County Residential Property Value Predictor")
-st.write(
-    """
-    This app predicts residential property **APPRAISED_VALUE**
-    using a Linear Regression model trained on historical assessor data.
-    """
-)
 
+st.write("""
+This application predicts residential property **APPRAISED_VALUE**
+using a Linear Regression model trained on historical assessor data.
+""")
+
+# ----------------------------
+# Load and Train Model
+# ----------------------------
 @st.cache_data
 def load_and_train_model():
-    url = "Housing_Hamilton_County.xlsx"
-    data = pd.read_excel(url, sheet_name='AssessorExport')
+    
+    # Load smaller CSV instead of large Excel file
+    data = pd.read_csv("housing_small.csv")
 
-    # Rename columns
-    data.rename(columns={'APPRAISED_VALUE': 'AP'}, inplace=True)
-    data.rename(columns={'LAND_USE_CODE_DESC': 'LAND'}, inplace=True)
+    # Rename columns to match modeling code
+    data.rename(columns={
+        'APPRAISED_VALUE': 'AP',
+        'LAND_USE_CODE_DESC': 'LAND'
+    }, inplace=True)
 
     # Convert AP to numeric
     data['AP'] = pd.to_numeric(data['AP'], errors='coerce')
     data_clean = data.dropna(subset=['AP'])
 
-    # Keep residential only
+    # Keep only residential properties
     residential_data = data_clean[data_clean['LAND'] == 'RESIDENTIAL']
 
     # Standardize column names
@@ -31,12 +38,8 @@ def load_and_train_model():
         .str.replace(" ", "_")
     )
 
-    residential_only = residential_data[
-        residential_data['LAND'].str.upper() == 'RESIDENTIAL'
-    ]
-
-    residential_only['AP'] = pd.to_numeric(
-        residential_only['AP'], errors='coerce'
+    residential_data['AP'] = pd.to_numeric(
+        residential_data['AP'], errors='coerce'
     )
 
     features = [
@@ -48,7 +51,7 @@ def load_and_train_model():
         'ZONING'
     ]
 
-    model_data = residential_only[features + ['AP']].dropna()
+    model_data = residential_data[features + ['AP']].dropna()
 
     X = model_data[features]
     y = model_data['AP']
@@ -76,11 +79,15 @@ def load_and_train_model():
 model, model_columns, model_data = load_and_train_model()
 
 # ----------------------------
-# User Inputs
+# User Input Section
 # ----------------------------
 st.header("Enter Property Information")
 
-calc_acres = st.number_input("Lot Size (Acres)", min_value=0.0, value=0.25)
+calc_acres = st.number_input(
+    "Lot Size (Acres)",
+    min_value=0.0,
+    value=0.25
+)
 
 neighborhood = st.selectbox(
     "Neighborhood Code",
@@ -133,17 +140,19 @@ if st.button("Predict Appraised Value"):
 
     input_df = pd.get_dummies(input_df, columns=categorical_cols, drop_first=True)
 
-    # Align with training columns
+    # Align columns with training data
     input_df = input_df.reindex(columns=model_columns, fill_value=0)
 
     prediction = model.predict(input_df)[0]
 
-    st.subheader("Predicted Appraised Value:")
+    st.subheader("Predicted Appraised Value")
     st.success(f"${prediction:,.2f}")
 
 # ----------------------------
 # Disclaimer
 # ----------------------------
 st.markdown("---")
-st.caption("Disclaimer: This model is for educational purposes only. "
-           "Predictions are estimates and should not be used for official property valuation.")
+st.caption(
+    "Disclaimer: This model is for educational purposes only. "
+    "Predictions are estimates and should not be used for official property valuation."
+)
